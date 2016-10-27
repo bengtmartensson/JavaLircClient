@@ -20,7 +20,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -40,7 +39,7 @@ public final class TcpLircClient extends LircClient {
     private final Socket socket;
 
     public TcpLircClient(String address, int port, boolean verbose, int timeout) throws UnknownHostException, IOException {
-        super(verbose, timeout);
+        super(verbose);
         lircServerIp = (address != null) ? address : defaultLircIP;
         inetAddress = InetAddress.getByName(lircServerIp);
         this.port = port;
@@ -53,7 +52,7 @@ public final class TcpLircClient extends LircClient {
         socket.setSoTimeout(timeout);
         socket.setKeepAlive(true);
 
-        outToServer = new PrintStream(socket.getOutputStream(), true, encodingName);
+        outToServer = socket.getOutputStream();
 
         InputStream inStream = socket.getInputStream();
         Charset charSet = Charset.forName(encodingName);

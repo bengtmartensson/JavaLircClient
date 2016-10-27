@@ -13,8 +13,8 @@ public class UnixDomainSocketLircClient extends LircClient {
     private final String socketPath;
     private Closeable socket;
 
-    public UnixDomainSocketLircClient(String socketPath, boolean verbose, int timeout) {
-        super(verbose, timeout);
+    public UnixDomainSocketLircClient(String socketPath, boolean verbose) {
+        super(verbose);
         this.socketPath = socketPath != null ? socketPath : defaultSocketPath;
         throw new UnsupportedOperationException("not yet implemented");
     }

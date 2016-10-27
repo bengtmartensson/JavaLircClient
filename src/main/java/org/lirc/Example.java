@@ -19,6 +19,7 @@ package org.lirc;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.List;
 
 /**
  * An example of using the API of LircClient to send and receive information from a Lirc server.
@@ -30,28 +31,30 @@ public class Example {
             LircClient lirc = new TcpLircClient("localhost", 8765);
             String version = lirc.getVersion();
             System.out.println(version);
-            String[] remotes = lirc.getRemotes();
-            if (remotes == null) {
-                System.err.println("null receved");
-                System.exit(1);
-            }
-            for (int i = 0; i < remotes.length; i++)
-                System.out.println(i + ":\t" + remotes[i]);
+            List<String> remotes = lirc.getRemotes();
+            int i = 0;
+            for (String remote : remotes)
+                System.out.println(i++ + ":\t" + remote);
 
             System.out.println("Select a remote by entering its number");
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, LircClient.encodingName));
             String line = reader.readLine();
+            if (line == null)
+                return;
             int remoteNo = Integer.parseInt(line);
-            String remote = remotes[remoteNo];
-            String[] commands = lirc.getCommands(remote);
-            for (int i = 0; i < commands.length; i++)
-                System.out.println(i + ":\t" + commands[i]);
+            String remote = remotes.get(remoteNo);
+            List<String> commands = lirc.getCommands(remote);
+            i = 0;
+            for (String command : commands)
+                System.out.println(i++ + ":\t" + command);
             System.out.println("Select a command by entering its number");
             line = reader.readLine();
+            if (line == null)
+                return;
             int commandNo = Integer.parseInt(line);
-            String command = commands[commandNo];
-            boolean success = lirc.sendIrCommand(remote, command, 1);
-            System.out.println(success ? "success" : "fail");
+            String command = commands.get(commandNo);
+            lirc.sendIrCommand(remote, command, 1);
+            System.out.println("Command successful");
         } catch (IOException ex) {
             ex.printStackTrace();
         }

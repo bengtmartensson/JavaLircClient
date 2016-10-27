@@ -25,7 +25,6 @@ import java.io.BufferedReader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,22 +34,15 @@ import java.util.List;
  */
 public abstract class LircClient implements Closeable {
 
-    public final static int defaultTimeout = 5000; // WinLirc can be really slow...
-    private final static int P_BEGIN = 0;
-    private final static int P_MESSAGE = 1;
-    private final static int P_STATUS = 2;
-    private final static int P_DATA = 3;
-    private final static int P_N = 4;
-    private final static int P_DATA_N = 5;
-    private final static int P_END = 6;
+    public static final int defaultTimeout = 5000; // WinLirc can be really slow...
+    public static final int EXITSUCCESS = 0;
+    public static final int EXITUSAGEERROR = 1;
+    public static final int EXITEXECUTIONERROR = 2;
+    public static final String VERSION = "LircClient 0.1.0";
+    public static final String encodingName = "US-ASCII";
+
     private static JCommander argumentParser;
     private static CommandLineArgs commandLineArgs = new CommandLineArgs();
-    private static int EXITSUCCESS = 0;
-    private static int EXITUSAGEERROR = 1;
-    private static int EXITIOERROR = 2;
-    private static int EXITFATALERROR = 3;
-    private static String VERSION = "LircClient 0.1.0";
-    protected static final String encodingName = "US-ASCII";
 
     private static void usage(int exitcode) {
         StringBuilder str = new StringBuilder(256);
@@ -67,7 +59,7 @@ public abstract class LircClient implements Closeable {
     private static void doExit(boolean success) {
         if (!success)
             System.err.println("Failed");
-        System.exit(success ? EXITSUCCESS : EXITIOERROR);
+        System.exit(success ? EXITSUCCESS : EXITEXECUTIONERROR);
     }
     private static void doExit(String message, int exitcode) {
         System.err.println(message);
@@ -96,7 +88,7 @@ public abstract class LircClient implements Closeable {
         argumentParser.addCommand("list", cmdList);
 
         CommandSetInputLog cmdSetInputLog = new CommandSetInputLog();
-        argumentParser.addCommand("set_inputlog", cmdSetInputLog);
+        argumentParser.addCommand("set_input_log", cmdSetInputLog);
 
         CommandSetDriverOption cmdSetDriverOption = new CommandSetDriverOption();
         argumentParser.addCommand("set_driver_option", cmdSetDriverOption);
@@ -104,8 +96,8 @@ public abstract class LircClient implements Closeable {
         CommandSetTransmitters cmdSetTransmitters = new CommandSetTransmitters();
         argumentParser.addCommand("set_transmitters", cmdSetTransmitters);
 
-        CommandSimulate cmdSimulate = new CommandSimulate();
-        argumentParser.addCommand("simulate", cmdSimulate);
+//        CommandSimulate cmdSimulate = new CommandSimulate();
+//        argumentParser.addCommand("simulate", cmdSimulate);
 
         CommandVersion cmdVersion = new CommandVersion();
         argumentParser.addCommand("version", cmdVersion);
@@ -132,77 +124,81 @@ public abstract class LircClient implements Closeable {
             boolean success = true;
             switch (argumentParser.getParsedCommand()) {
                 case "send_once":
-                    String remote = cmdSendOnce.commands.get(0);
-                    cmdSendOnce.commands.remove(0);
-                    for (String command : cmdSendOnce.commands) {
-                        success = lircClient.sendIrCommand(remote, command, cmdSendOnce.count);
-                        if (!success)
-                            break;
-                    }
+                    if (cmdSendOnce.args.size() < 2)
+                        doExit("Command \"send_once\" requires at least two arguments", EXITUSAGEERROR);
+                    String remote = cmdSendOnce.args.get(0);
+                    for (int i = 1; i < cmdSendOnce.args.size(); i++)
+                        lircClient.sendIrCommand(remote, cmdSendOnce.args.get(i), cmdSendOnce.count); //  throw exception by failure
                     break;
                 case "send_start":
-                    success = lircClient.sendIrCommandRepeat(cmdSendStart.args.get(0), cmdSendStart.args.get(1));
+                    lircClient.sendIrCommandRepeat(cmdSendStart.args.get(0), cmdSendStart.args.get(1));
                     break;
                 case "send_stop":
-                    success = lircClient.stopIr(cmdSendStop.args.get(0), cmdSendStop.args.get(1));
+                    if (cmdSendStop.args.isEmpty())
+                        lircClient.stopIr();
+                    else
+                        lircClient.stopIr(cmdSendStop.args.get(0), cmdSendStop.args.get(1));
                     break;
                 case "list":
-                    String[] result = cmdList.remote.isEmpty() ? lircClient.getRemotes()
-                            : lircClient.getCommands(cmdList.remote.get(0));
-                    for (String s : result)
-                        System.out.println(s);
+                    List<String> result = cmdList.remote == null ? lircClient.getRemotes()
+                            : lircClient.getCommands(cmdList.remote);
+                    result.stream().forEach(System.out::println);
                     break;
                 case "set_transmitters":
                     if (cmdSetTransmitters.transmitters.size() < 1)
                         doExit("Command \"set_transmitters\" requires at least one argument", EXITUSAGEERROR);
-
-                    //LircTransmitter xmitter = new LircTransmitter(cmdSetTransmitters.transmitters);
-                    success = lircClient.setTransmitters(cmdSetTransmitters.transmitters);
+                    lircClient.setTransmitters(cmdSetTransmitters.transmitters);
                     break;
                 case "version":
                     System.out.println(lircClient.getVersion());
                     break;
-                case "simulate":
                 case "set_driver_option":
-                case "set_input_log":
-                    doExit("Command " + argumentParser.getParsedCommand() + " not yet implemented", EXITUSAGEERROR);
+                    if (cmdSetDriverOption.args.size() != 2)
+                        doExit("Command \"set_driver_option\" requires at exactly two arguments", EXITUSAGEERROR);
+                    lircClient.setDriverOption(cmdSetDriverOption.args.get(0), cmdSetDriverOption.args.get(1));
                     break;
+                case "set_input_log":
+                    lircClient.setInputLog(cmdSetInputLog.logfilePath.isEmpty() ? null : cmdSetInputLog.logfilePath.get(0));
+                    break;
+//                case "simulate":
+//                    doExit("Command " + argumentParser.getParsedCommand() + " not implemented", EXITUSAGEERROR);
+//                    break;
                 default:
                     doExit("Unknown command", EXITUSAGEERROR);
             }
             doExit(success);
         } catch (IOException ex) {
-            doExit(ex.getMessage(), EXITFATALERROR);
+            doExit(ex.getMessage(), EXITEXECUTIONERROR);
         } catch (IndexOutOfBoundsException ex) {
-            doExit("Too few arguments to command", EXITUSAGEERROR);
+            doExit("Too few arguments to command " + argumentParser.getParsedCommand(), EXITUSAGEERROR);
         }
     }
 
     private static LircClient newLircClient(CommandLineArgs commandLineArgs) throws IOException {
         return commandLineArgs.socketPathname != null
-                ? new UnixDomainSocketLircClient(commandLineArgs.socketPathname, commandLineArgs.verbose, commandLineArgs.timeout)
+                ? new UnixDomainSocketLircClient(commandLineArgs.socketPathname, commandLineArgs.verbose)
                 : new TcpLircClient(commandLineArgs.address, commandLineArgs.port, commandLineArgs.verbose, commandLineArgs.timeout);
     }
 
-    protected boolean verbose = false;
-    protected int timeout = defaultTimeout;
+    protected boolean verbose;
 
-    private String lastRemote = null;
-    private String lastCommand = null;
+    private String lastRemote;
+    private String lastCommand;
     protected OutputStream outToServer;
     protected BufferedReader inFromServer;
 
-    protected LircClient(boolean verbose, int timeout) {
-        this.timeout = timeout;
+    protected LircClient(boolean verbose) {
+        this.lastCommand = null;
+        this.lastRemote = null;
         this.verbose = verbose;
+    }
+
+    protected LircClient() {
+        this(false);
     }
 
     public void setVerbosity(boolean verbosity) {
         this.verbose = verbosity;
-    }
-
-    public void setTimeout(int timeout) {
-        this.timeout = timeout;
     }
 
     @Override
@@ -213,182 +209,183 @@ public abstract class LircClient implements Closeable {
 
     private void sendBytes(byte[] cmd) throws IOException {
         outToServer.write(cmd);
+        outToServer.flush(); // just to be safe
     }
 
     private void sendString(String cmd) throws IOException {
         sendBytes(cmd.getBytes(encodingName));
     }
 
-    private final String[] sendCommand(String packet, boolean oneWord) throws IOException {
+    private List<String> sendCommand(String command) throws IOException {
         if (verbose)
-            System.err.println("Sending command `" + packet + "' to Lirc@" + socketName());
+            System.err.println("Sending command `" + command + "' to Lirc@" + socketName());
 
-        sendString(packet + '\n');
+        sendString(command + '\n');
 
         ArrayList<String> result = new ArrayList<>(8);
-        int status = 0;
-        try {
-            int state = P_BEGIN;
-            int n = 0;
-            boolean done = false;
-            int dataN = -1;
+        State state = State.BEGIN;
+        int linesReceived = 0;
+        int linesExpected = -1;
 
-            while (!done) {
-                String string = inFromServer.readLine();
-                if (verbose)
-                    System.err.println("Received `" + string + "'");
-                if (string == null) {
-                    done = true;
-                    status = -1;
-                } else {
-                    OUTER:
-                    switch (state) {
-                        case P_BEGIN:
-                            if (!string.equals("BEGIN")) {
-                                System.err.println("!begin");
-                                continue;
-                            }
-                            state = P_MESSAGE;
-                            break;
-                        case P_MESSAGE:
-                            if (!string.trim().equalsIgnoreCase(packet)) {
-                                state = P_BEGIN;
-                                continue;
-                            }
-                            state = P_STATUS;
-                            break;
-                        case P_STATUS:
-                            switch (string) {
-                                case "SUCCESS":
-                                    status = 0;
-                                    break;
-                                case "END":
-                                    status = 0;
-                                    done = true;
-                                    break;
-                                case "ERROR":
-                                    System.err.println("command failed: " + packet);
-                                    status = -1;
-                                    break;
-                                default:
-                                    throw new BadPacketException();
-                            }
-                            state = P_DATA;
-                            break;
-                        case P_DATA:
-                            switch (string) {
-                                case "END":
-                                    done = true;
-                                    break OUTER;
-                                case "DATA":
-                                    state = P_N;
-                                    break OUTER;
-                            }
-                            throw new BadPacketException();
-                        case P_N:
-                            //errno = 0;
-                            dataN = Integer.parseInt(string);
-                            //result = new String[data_n];
+        while (state != State.DONE) {
+            String line = inFromServer.readLine();
+            if (verbose)
+                System.err.println("Received \"" + line + "\"");
 
-                            state = dataN == 0 ? P_END : P_DATA_N;
+            if (line == null) {
+                state = State.DONE;
+                continue;
+            }
+            switch (state) {
+                case BEGIN:
+                    if (line.equals("BEGIN"))
+                        state = State.MESSAGE;
+                    break;
+                case MESSAGE:
+                    state = line.trim().equalsIgnoreCase(command) ? State.STATUS : State.BEGIN;
+                    break;
+                case STATUS:
+                    switch (line) {
+                        case "SUCCESS":
+                            state = State.DATA;
                             break;
-                        case P_DATA_N:
-                            // Different LIRC servers seems to deliver commands in different
-                            // formats. Just take the last word.
-                            result.add(oneWord ? string.replaceAll("\\S*\\s+", "") : string);
-                            n++;
-                            if (n == dataN) {
-                                state = P_END;
-                            }
+                        case "END":
+                            state = State.DONE;
                             break;
-                        case P_END:
-                            if (string.equals("END")) {
-                                done = true;
-                            } else {
-                                throw new BadPacketException();
-                            }
+                        case "ERROR":
+                            throw new LircServerException("command failed: " + command);
+                        default:
+                            throw new BadPacketException("unknown response: " + command);
+                    }
+                    break;
+                case DATA:
+                    switch (line) {
+                        case "END":
+                            state = State.DONE;
+                            break;
+                        case "DATA":
+                            state = State.N;
                             break;
                         default:
-                            assert false : "Unhandled case";
-                            break;
+                            throw new BadPacketException("unknown response: " + command);
                     }
-                }
+                    break;
+                case N:
+                    try {
+                        linesExpected = Integer.parseInt(line);
+                    } catch (NumberFormatException ex) {
+                        throw new BadPacketException("integer expected; got: " + command);
+                    }
+                    state = linesExpected == 0 ? State.END : State.DATA_N;
+                    break;
+                case DATA_N:
+                    result.add(line);
+                    linesReceived++;
+                    if (linesReceived == linesExpected)
+                        state = State.END;
+                    break;
+                case END:
+                    if (line.equals("END"))
+                        state = State.DONE;
+                    else
+                        throw new BadPacketException("\"END\" expected but \"" + line + "\" received");
+                    break;
+                case DONE:
+                    break;
+                default:
+                    throw new RuntimeException("Unhandled case (programming error)");
             }
-        } catch (BadPacketException e) {
-            System.err.println("bad return packet");
-            status = -1;
-        } catch (SocketTimeoutException e) {
-            System.err.println("Sockettimeout Lirc: " + e.getMessage());
-            result = null;
-            status = -1;
-        } catch (IOException e) {
-            System.err.println("Couldn't read from " + socketName());
-            status = -1;
         }
         if (verbose)
-            System.err.println("Lirc command " + (status == 0 ? "succeded." : "failed."));
+            System.err.println("Lirc command succeded.");
 
-        return status == 0 && result != null ? result.toArray(new String[result.size()]) : null;
+        return result;
     }
 
-    public boolean sendIrCommand(String remote, String command, int count) throws IOException {
+    public void sendIrCommand(String remote, String command, int count) throws IOException {
         this.lastRemote = remote;
         this.lastCommand = command;
-        return sendCommand("SEND_ONCE " + remote + " " + command + " " + (count - 1), false) != null;
+        sendCommand("SEND_ONCE " + remote + " " + command + " " + (count - 1));
     }
 
-    public boolean sendIrCommandRepeat(String remote, String command) throws IOException {
+    public void sendIrCommandRepeat(String remote, String command) throws IOException {
         this.lastRemote = remote;
         this.lastCommand = command;
-        return sendCommand("SEND_START " + remote + " " + command, false) != null;
+        sendCommand("SEND_START " + remote + " " + command);
     }
 
-    public boolean stopIr(String remote, String command) throws IOException {
-            return sendCommand("SEND_STOP " + remote + " " + command, false) != null;
+    public void stopIr(String remote, String command) throws IOException {
+        sendCommand("SEND_STOP " + remote + " " + command);
     }
 
-    public boolean stopIr() throws IOException {
-        return stopIr(lastRemote, lastCommand);
+    public void stopIr() throws IOException {
+        sendCommand("SEND_STOP " + lastRemote + " " + lastCommand);
     }
 
-    public String[] getRemotes() throws IOException {
-        return sendCommand("LIST", false);
+    public List<String> getRemotes() throws IOException {
+        return sendCommand("LIST");
     }
 
-    public String[] getCommands(String remote) throws IOException {
+    public List<String> getCommands(String remote) throws IOException {
         if (remote == null || remote.isEmpty())
             throw new NullPointerException("Null remote");
-        return sendCommand("LIST " + remote, true);
+        List<String> output = sendCommand("LIST " + remote);
+        List<String> result = new ArrayList<>(output.size());
+        output.stream().forEach((s) -> {
+            result.add(s.replaceAll("\\S*\\s+", ""));
+        });
+        return result;
     }
 
-    /**
-     * Sends the SET_TRANSMITTER command to the LIRC server.
-     * @param transmitters
-     * @return
-     * @throws IOException
-     */
-    public boolean setTransmitters(List<Integer> transmitters) throws IOException {
+    public void setTransmitters(List<Integer> transmitters) throws IOException {
         long mask = 0L;
         for (int transmitter : transmitters)
             mask |= (1L << (transmitter - 1));
 
-        return setTransmitters(mask);
+        setTransmitters(mask);
     }
 
-    private boolean setTransmitters(long mask) throws IOException {
-        String s = "SET_TRANSMITTERS " + Long.toString(mask);
-        return sendCommand(s, false) != null;
+    public void setTransmitters(long mask) throws IOException {
+        sendCommand("SET_TRANSMITTERS " + Long.toString(mask));
     }
 
     public String getVersion() throws IOException {
-        String[] result = sendCommand("VERSION", false);
-        String version = (result == null || result.length == 0) ? null : result[0];
-        return version;
+        List<String> result = sendCommand("VERSION");
+        if (result.isEmpty())
+            throw new LircServerException();
+        return result.get(0);
     }
+
+    public void setInputLog() throws IOException {
+        setInputLog("null");
+    }
+
+    public void setInputLog(String logPath) throws IOException {
+        sendCommand("SET_INPUTLOG " + (logPath == null ? "null" : logPath));
+    }
+
+    public void setDriverOption(String key, String value) throws IOException {
+        sendCommand("DRV_OPTION " + key + " " + value);
+    }
+
+//    public boolean simulate(String key, String data) throws IOException {
+//        return sendCommand("SIMULATE " + key + " " + data, false) != null;
+//    }
 
     protected abstract String socketName();
 
-    private static class BadPacketException extends Exception {
+    private static enum State {
+        BEGIN,
+        MESSAGE,
+        STATUS,
+        DATA,
+        N,
+        DATA_N,
+        END,
+        DONE // new
+    }
+
+    private static class BadPacketException extends IOException {
         BadPacketException() {
             super();
         }
@@ -428,16 +425,16 @@ public abstract class LircClient implements Closeable {
         private int count = 1;
 
         @Parameter(description = "remote command...")
-        private List<String> commands = new ArrayList<>(16);
+        private List<String> args = new ArrayList<>(16);
     }
 
-    @Parameters(commandDescription = "Send one commandm possibly several many times")
+    @Parameters(commandDescription = "Start sending one command until stopped")
     private final static class CommandSendStart {
         @Parameter(arity = 2, description = "remote command")
         private List<String> args = new ArrayList<>(2);
     }
 
-    @Parameters(commandDescription = "Send one commands many times")
+    @Parameters(commandDescription = "Stop sending the command from send_start")
     private final static class CommandSendStop {
         @Parameter(arity = 2, description = "remote command")
         private List<String> args = new ArrayList<>(2);
@@ -446,25 +443,26 @@ public abstract class LircClient implements Closeable {
     @Parameters(commandDescription = "Inquire either the list of remotes, or the list of commands in a remote")
     private final static class CommandList {
         @Parameter(required = false, description = "[remote]")
-        private List<String> remote = new ArrayList<>(1);
+        private String remote = null;
     }
 
     @Parameters(commandDescription = "Set input logging")
     private final static class CommandSetInputLog {
-        @Parameter(required = false, description = "Path to log file")
-        private String logfilePath = null;
+        @Parameter(required = false, description = "Path to log file, empty to stop logging")
+        private List<String> logfilePath = new ArrayList<>(1);
     }
 
-    @Parameters(commandDescription = "Set driver options")
+    @Parameters(commandDescription = "Set driver option")
     private final static class CommandSetDriverOption {
         @Parameter(arity = 2, description = "key value")
-        private List<String> driverOptions = new ArrayList<>(2);
+        private List<String> args = new ArrayList<>(2);
     }
 
-    @Parameters(commandDescription = "Fake reception of IR signals")
-    private final static class CommandSimulate {
-        // not yet implemented
-    }
+//    @Parameters(commandDescription = "Fake reception of IR signals")
+//    private final static class CommandSimulate {
+//        @Parameter(arity = 2, description = "key value")
+//        private List<String> simulateOptions = new ArrayList<>(2);
+//    }
 
     @Parameters(commandDescription = "Set transmitters")
     private final static class CommandSetTransmitters {
