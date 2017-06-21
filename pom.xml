@@ -37,12 +37,14 @@
                             <mainClass>org.harctoolbox.lircclient.LircClient</mainClass>
                         </manifest>
                     </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
-                    <!--descriptors>
+                    <descriptors>
+                        <descriptor>src/assembly/jar-with-dependencies.xml</descriptor>
                         <descriptor>src/assembly/target.xml</descriptor>
-                    </descriptors-->
+                    </descriptors>
+                    <!--descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                        <descriptorRef>bin</descriptorRef>
+                    </descriptorRefs-->
                 </configuration>
                 <executions>
                     <execution>
@@ -52,7 +54,7 @@
                             <goal>single</goal>
                         </goals>
                     </execution>
-                   </executions>
+                </executions>
             </plugin>
 
             <plugin>

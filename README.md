@@ -1,4 +1,4 @@
-# JavaLircClient
+# JavaLircClient  [![Build Status](https://travis-ci.org/bengtmartensson/JavaLircClient.svg?branch=master)](https://travis-ci.org/bengtmartensson/JavaLircClient)
 Java implementation of a Lirc client for communicating with a Lircd server. It contains
 both an API and a command line interface. The command line interface, found in LircClient.java,
 roughly resembles the Lirc program [irsend](http://lirc.org/html/irsend.html).
