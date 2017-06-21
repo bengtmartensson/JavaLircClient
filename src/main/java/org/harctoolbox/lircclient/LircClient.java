@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License along with
 this program. If not, see http://www.gnu.org/licenses/.
 */
 
-package org.lirc;
+package org.harctoolbox.lircclient;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;

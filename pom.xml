@@ -4,10 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
                              http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.lirc</groupId>
+    <groupId>org.harctoolbox</groupId>
     <artifactId>JavaLircClient</artifactId>
     <packaging>jar</packaging>
-    <version>0.1.0</version>
+    <version>0.1.1dev</version>
     <name>JavaLircClient</name>
     <licenses>
         <license>
@@ -15,8 +15,8 @@
             <url>https://www.gnu.org/licenses/gpl.html</url>
         </license>
     </licenses>
-    <description>TODO.</description>
-    <url>http://www.lirc.org</url>
+    <description>An independent implementation of a Lirc Client, like irsend.</description>
+    <url>http://www.harctoolbox.org</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
@@ -71,7 +71,7 @@
             <groupId>com.beust</groupId>
             <artifactId>jcommander</artifactId>
             <scope>compile</scope>
-            <version>1.48</version>
+            <version>1.72</version>
         </dependency>
 
     </dependencies>
