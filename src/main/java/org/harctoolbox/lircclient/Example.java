@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2016 Bengt Martensson.
+Copyright (C) 2016, 2017 Bengt Martensson.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,13 +28,12 @@ public class Example {
 
     public static void main(String[] args) {
         try {
-            LircClient lirc = new TcpLircClient("localhost", 8765);
+            LircClient lirc = new TcpLircClient("localhost", 8765, true, 5000);
             String version = lirc.getVersion();
             System.out.println(version);
             List<String> remotes = lirc.getRemotes();
-            int i = 0;
-            for (String remote : remotes)
-                System.out.println(i++ + ":\t" + remote);
+            for (int i = 0; i < remotes.size(); i++)
+                System.out.println(i + ":\t" + remotes.get(i));
 
             System.out.println("Select a remote by entering its number");
             BufferedReader reader = new BufferedReader(new InputStreamReader(System.in, LircClient.encodingName));
@@ -44,9 +43,8 @@ public class Example {
             int remoteNo = Integer.parseInt(line);
             String remote = remotes.get(remoteNo);
             List<String> commands = lirc.getCommands(remote);
-            i = 0;
-            for (String command : commands)
-                System.out.println(i++ + ":\t" + command);
+            for (int i = 0; i < commands.size(); i++)
+                System.out.println(i + ":\t" + commands.get(i));
             System.out.println("Select a command by entering its number");
             line = reader.readLine();
             if (line == null)

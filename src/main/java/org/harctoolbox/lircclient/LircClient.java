@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2016 Bengt Martensson.
+Copyright (C) 2016, 2017 Bengt Martensson.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,11 +34,10 @@ import java.util.List;
  */
 public abstract class LircClient implements Closeable {
 
-    public static final int defaultTimeout = 5000; // WinLirc can be really slow...
+    public static final int DEFAULTTIMEOUT = 5000; // WinLirc can be really slow...
     public static final int EXITSUCCESS = 0;
     public static final int EXITUSAGEERROR = 1;
     public static final int EXITEXECUTIONERROR = 2;
-    public static final String VERSION = "LircClient 0.1.0";
     public static final String encodingName = "US-ASCII";
 
     private static JCommander argumentParser;
@@ -75,29 +74,32 @@ public abstract class LircClient implements Closeable {
         argumentParser.setAllowAbbreviatedOptions(true);
         argumentParser.setProgramName("LircClient");
 
-        CommandSendOnce cmdSendOnce = new CommandSendOnce();
-        argumentParser.addCommand("send_once", cmdSendOnce);
+        CommandSend cmdSendOnce = new CommandSend();
+        argumentParser.addCommand("send", cmdSendOnce);
 
-        CommandSendStart cmdSendStart = new CommandSendStart();
-        argumentParser.addCommand("send_start", cmdSendStart);
+        CommandStart cmdSendStart = new CommandStart();
+        argumentParser.addCommand("start", cmdSendStart);
 
-        CommandSendStop cmdSendStop = new CommandSendStop();
-        argumentParser.addCommand("send_stop", cmdSendStop);
+        CommandStop cmdSendStop = new CommandStop();
+        argumentParser.addCommand("stop", cmdSendStop);
 
-        CommandList cmdList = new CommandList();
-        argumentParser.addCommand("list", cmdList);
+        CommandRemotes cmdRemotes = new CommandRemotes();
+        argumentParser.addCommand("remotes", cmdRemotes);
 
-        CommandSetInputLog cmdSetInputLog = new CommandSetInputLog();
-        argumentParser.addCommand("set_input_log", cmdSetInputLog);
+        CommandCommands cmdCommands = new CommandCommands();
+        argumentParser.addCommand("commands", cmdCommands);
 
-        CommandSetDriverOption cmdSetDriverOption = new CommandSetDriverOption();
-        argumentParser.addCommand("set_driver_option", cmdSetDriverOption);
+        CommandInputLog cmdSetInputLog = new CommandInputLog();
+        argumentParser.addCommand("input-log", cmdSetInputLog);
 
-        CommandSetTransmitters cmdSetTransmitters = new CommandSetTransmitters();
-        argumentParser.addCommand("set_transmitters", cmdSetTransmitters);
+        CommandDriverOption cmdSetDriverOption = new CommandDriverOption();
+        argumentParser.addCommand("driver-option", cmdSetDriverOption);
 
-//        CommandSimulate cmdSimulate = new CommandSimulate();
-//        argumentParser.addCommand("simulate", cmdSimulate);
+        CommandSimulate cmdSimulate = new CommandSimulate();
+        argumentParser.addCommand("simulate", cmdSimulate);
+
+        CommandTransmitters cmdSetTransmitters = new CommandTransmitters();
+        argumentParser.addCommand("transmitters", cmdSetTransmitters);
 
         CommandVersion cmdVersion = new CommandVersion();
         argumentParser.addCommand("version", cmdVersion);
@@ -113,7 +115,8 @@ public abstract class LircClient implements Closeable {
             usage(EXITSUCCESS);
 
         if (commandLineArgs.versionRequested) {
-            System.out.println(VERSION);
+            System.out.println(Version.versionString);
+            System.out.println(Version.licenseString);
             doExit(true);
         }
 
@@ -123,9 +126,9 @@ public abstract class LircClient implements Closeable {
 
             boolean success = true;
             switch (argumentParser.getParsedCommand()) {
-                case "send_once":
+                case "send":
                     if (cmdSendOnce.args.size() < 2)
-                        doExit("Command \"send_once\" requires at least two arguments", EXITUSAGEERROR);
+                        doExit("Command \"send_once\" requires two arguments", EXITUSAGEERROR);
                     String remote = cmdSendOnce.args.get(0);
                     for (int i = 1; i < cmdSendOnce.args.size(); i++)
                         lircClient.sendIrCommand(remote, cmdSendOnce.args.get(i), cmdSendOnce.count); //  throw exception by failure
@@ -139,20 +142,23 @@ public abstract class LircClient implements Closeable {
                     else
                         lircClient.stopIr(cmdSendStop.args.get(0), cmdSendStop.args.get(1));
                     break;
-                case "list":
-                    List<String> result = cmdList.remote == null ? lircClient.getRemotes()
-                            : lircClient.getCommands(cmdList.remote);
-                    result.stream().forEach(System.out::println);
+                case "remotes":
+                    List<String> remotes = lircClient.getRemotes();
+                    remotes.stream().forEach(System.out::println);
                     break;
-                case "set_transmitters":
+                case "commands":
+                    List<String> commands = lircClient.getCommands(cmdCommands.remote);
+                    commands.stream().forEach(System.out::println);
+                    break;
+                case "transmitters":
                     if (cmdSetTransmitters.transmitters.size() < 1)
-                        doExit("Command \"set_transmitters\" requires at least one argument", EXITUSAGEERROR);
+                        doExit("Command \"transmitters\" requires at least one argument", EXITUSAGEERROR);
                     lircClient.setTransmitters(cmdSetTransmitters.transmitters);
                     break;
                 case "version":
                     System.out.println(lircClient.getVersion());
                     break;
-                case "set_driver_option":
+                case "driver-option":
                     if (cmdSetDriverOption.args.size() != 2)
                         doExit("Command \"set_driver_option\" requires at exactly two arguments", EXITUSAGEERROR);
                     lircClient.setDriverOption(cmdSetDriverOption.args.get(0), cmdSetDriverOption.args.get(1));
@@ -160,17 +166,19 @@ public abstract class LircClient implements Closeable {
                 case "set_input_log":
                     lircClient.setInputLog(cmdSetInputLog.logfilePath.isEmpty() ? null : cmdSetInputLog.logfilePath.get(0));
                     break;
-//                case "simulate":
-//                    doExit("Command " + argumentParser.getParsedCommand() + " not implemented", EXITUSAGEERROR);
-//                    break;
+                case "simulate":
+                    lircClient.simulate(cmdSimulate.eventString);
+                    break;
                 default:
-                    doExit("Unknown command", EXITUSAGEERROR);
+                    doExit("Unknown command: " + argumentParser.getParsedCommand(), EXITUSAGEERROR);
             }
             doExit(success);
         } catch (IOException ex) {
             doExit(ex.getMessage(), EXITEXECUTIONERROR);
         } catch (IndexOutOfBoundsException ex) {
             doExit("Too few arguments to command " + argumentParser.getParsedCommand(), EXITUSAGEERROR);
+        } catch (UnsupportedOperationException ex) {
+            doExit("Unix domain sockets not yet implemented.", EXITUSAGEERROR);
         }
     }
 
@@ -368,9 +376,9 @@ public abstract class LircClient implements Closeable {
         sendCommand("DRV_OPTION " + key + " " + value);
     }
 
-//    public boolean simulate(String key, String data) throws IOException {
-//        return sendCommand("SIMULATE " + key + " " + data, false) != null;
-//    }
+    public void simulate(String eventString) throws IOException {
+        sendCommand("SIMULATE " + eventString);
+    }
 
     protected abstract String socketName();
 
@@ -397,8 +405,8 @@ public abstract class LircClient implements Closeable {
 
     private final static class CommandLineArgs {
 
-        @Parameter(names = {"-a", "--address"}, description = "IP name or address of lircd host")
-        private String address = "localhost";
+        @Parameter(names = {"-a", "--address"}, description = "IP name or address of lircd host. Takes preference over --device.")
+        private String address = "localhost"; // Change to null when implemented Unix domain socket version
 
         @Parameter(names = {"-d", "--device"}, description = "Path name of lircd socket")
         private String socketPathname = null; // /var/run/lirc/lircd
@@ -419,58 +427,68 @@ public abstract class LircClient implements Closeable {
         private boolean verbose;
     }
 
-    @Parameters(commandDescription = "Send one or many commands")
-    private final static class CommandSendOnce {
+    @Parameters(commandDescription = "Send one command")
+    private final static class CommandSend {
         @Parameter(names = {"-#", "-c", "--count"}, description = "Number of times to send command in send_once")
         private int count = 1;
 
-        @Parameter(description = "remote command...")
+        @Parameter(arity = 2, description = "remote command")
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         private List<String> args = new ArrayList<>(16);
     }
 
     @Parameters(commandDescription = "Start sending one command until stopped")
-    private final static class CommandSendStart {
+    private final static class CommandStart {
         @Parameter(arity = 2, description = "remote command")
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         private List<String> args = new ArrayList<>(2);
     }
 
-    @Parameters(commandDescription = "Stop sending the command from send_start")
-    private final static class CommandSendStop {
+    @Parameters(commandDescription = "Stop sending the command from start")
+    private final static class CommandStop {
         @Parameter(arity = 2, description = "remote command")
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         private List<String> args = new ArrayList<>(2);
     }
 
-    @Parameters(commandDescription = "Inquire either the list of remotes, or the list of commands in a remote")
-    private final static class CommandList {
-        @Parameter(required = false, description = "[remote]")
-        private String remote = null;
+    @Parameters(commandDescription = "Inquire the list of remotes")
+    @SuppressWarnings("ClassMayBeInterface")
+    private final static class CommandRemotes {
+    }
+
+    @Parameters(commandDescription = "Inquire the list of commands in a remote")
+    private final static class CommandCommands {
+        @Parameter(required = true, description = "[remote]")
+        private String remote;
     }
 
     @Parameters(commandDescription = "Set input logging")
-    private final static class CommandSetInputLog {
+    private final static class CommandInputLog {
         @Parameter(required = false, description = "Path to log file, empty to stop logging")
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         private List<String> logfilePath = new ArrayList<>(1);
     }
 
     @Parameters(commandDescription = "Set driver option")
-    private final static class CommandSetDriverOption {
+    private final static class CommandDriverOption {
         @Parameter(arity = 2, description = "key value")
+        @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
         private List<String> args = new ArrayList<>(2);
     }
 
-//    @Parameters(commandDescription = "Fake reception of IR signals")
-//    private final static class CommandSimulate {
-//        @Parameter(arity = 2, description = "key value")
-//        private List<String> simulateOptions = new ArrayList<>(2);
-//    }
+    @Parameters(commandDescription = "Fake reception of IR signals")
+    private final static class CommandSimulate {
+        @Parameter(arity = 2, description = "eventstring")
+        private String eventString;
+    }
 
     @Parameters(commandDescription = "Set transmitters")
-    private final static class CommandSetTransmitters {
+    private final static class CommandTransmitters {
         @Parameter(description = "transmitter...")
         private List<Integer> transmitters = new ArrayList<>(8);
     }
 
     @Parameters(commandDescription = "Inquire version of lircd")
-    private final static class CommandVersion {
+        private final static class CommandVersion {
     }
 }

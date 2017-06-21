@@ -1,5 +1,5 @@
 /*
-Copyright (C) 2016 Bengt Martensson.
+Copyright (C) 2016, 2017 Bengt Martensson.
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@ import java.nio.charset.Charset;
  */
 public final class TcpLircClient extends LircClient {
 
-    public final static int lircDefaultPort = 8765;
-    public final static String defaultLircIP = "127.0.0.1"; // localhost
+    public final static int LIRCDEFAULTPORT = 8765;
+    public final static String DEFAULTLIRCIP = "127.0.0.1"; // localhost
     private final String lircServerIp;
     private final int port;
     private InetAddress inetAddress;
@@ -40,7 +40,7 @@ public final class TcpLircClient extends LircClient {
 
     public TcpLircClient(String address, int port, boolean verbose, int timeout) throws UnknownHostException, IOException {
         super(verbose);
-        lircServerIp = (address != null) ? address : defaultLircIP;
+        lircServerIp = (address != null) ? address : DEFAULTLIRCIP;
         inetAddress = InetAddress.getByName(lircServerIp);
         this.port = port;
 
@@ -60,7 +60,7 @@ public final class TcpLircClient extends LircClient {
     }
 
     public TcpLircClient(String address, int port) throws IOException {
-        this(address, port, false, defaultTimeout);
+        this(address, port, false, DEFAULTTIMEOUT);
     }
 
     @Override

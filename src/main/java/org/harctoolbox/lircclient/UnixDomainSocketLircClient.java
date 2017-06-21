@@ -26,14 +26,22 @@ import java.io.IOException;
  */
 public class UnixDomainSocketLircClient extends LircClient {
 
-    public static final String defaultSocketPath = "/var/run/lirc/lircd";
+    public static final String DEFAULTSOCKETPATH = "/var/run/lirc/lircd";
     private final String socketPath;
     private Closeable socket;
 
     public UnixDomainSocketLircClient(String socketPath, boolean verbose) {
         super(verbose);
-        this.socketPath = socketPath != null ? socketPath : defaultSocketPath;
+        this.socketPath = socketPath != null ? socketPath : DEFAULTSOCKETPATH;
         throw new UnsupportedOperationException("not yet implemented");
+    }
+
+    public UnixDomainSocketLircClient(String socketPath) {
+        this(socketPath, false);
+    }
+
+    public UnixDomainSocketLircClient() {
+        this(DEFAULTSOCKETPATH, false);
     }
 
     @Override

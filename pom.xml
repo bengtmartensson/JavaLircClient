@@ -5,10 +5,10 @@
                              http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.harctoolbox</groupId>
-    <artifactId>JavaLircClient</artifactId>
+    <artifactId>LircClient</artifactId>
     <packaging>jar</packaging>
     <version>0.1.1dev</version>
-    <name>JavaLircClient</name>
+    <name>LircClient</name>
     <licenses>
         <license>
             <name>GPL 3+</name>
@@ -18,6 +18,7 @@
     <description>An independent implementation of a Lirc Client, like irsend.</description>
     <url>http://www.harctoolbox.org</url>
     <properties>
+        <project.nameLowercase>lircclient</project.nameLowercase>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -33,7 +34,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>org.lirc.LircClient</mainClass>
+                            <mainClass>org.harctoolbox.lircclient.LircClient</mainClass>
                         </manifest>
                     </archive>
                     <descriptorRefs>
@@ -63,8 +64,144 @@
                 </configuration>
             </plugin>
 
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>xml-maven-plugin</artifactId>
+                <version>1.0</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>transform</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <transformationSets>
+                        <transformationSet>
+                            <dir>src/main/xml</dir>
+                            <outputDir>${project.build.directory}/generated-sources/xml/org/harctoolbox/lircclient</outputDir>
+                            <includes>
+                                <include>Version.xml</include>
+                            </includes>
+                            <stylesheet>${basedir}/tools/mkVersion.xsl</stylesheet>
+                            <parameters>
+                                <parameter>
+                                    <name>version</name>
+                                    <value>${project.version}</value>
+                                </parameter>
+                                <parameter>
+                                    <name>url</name>
+                                    <value>${project.url}</value>
+                                </parameter>
+                                <parameter>
+                                    <name>appName</name>
+                                    <value>${project.artifactId}</value>
+                                </parameter>
+                            </parameters>
+                            <fileMappers>
+                                <fileMapper implementation="org.codehaus.plexus.components.io.filemappers.FileExtensionMapper">
+                                    <targetExtension>.java</targetExtension>
+                                </fileMapper>
+                            </fileMappers>
+                        </transformationSet>
+                    </transformationSets>
+                </configuration>
+
+                <dependencies>
+                    <dependency>
+                        <groupId>xalan</groupId>
+                        <artifactId>xalan</artifactId>
+                        <version>2.7.2</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>1.9.1</version>
+                <executions>
+                    <execution>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/xml</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <!-- Copy resources  in src/main/config to target dir. -->
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.0.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-resources</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${basedir}/target</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/config</directory>
+                                    <filtering>true</filtering>
+                                </resource>
+                                <!--resource>
+                                    <directory>src/main/resources</directory>
+                                    <filtering>false</filtering>
+                                </resource-->
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>chmod</id>
+            <activation>
+                <file>
+                    <exists>/usr/bin/chmod</exists> <!-- good enough for now :-) -->
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>1.5.0</version>
+                        <executions>
+                            <execution>
+                                <id>make-wrapper-executable</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>chmod</executable>
+                                    <workingDirectory>${project.build.directory}</workingDirectory>
+                                    <arguments>
+                                        <argument>0755</argument>
+                                        <argument>${project.nameLowercase}.sh</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
     <dependencies>
         <dependency>
